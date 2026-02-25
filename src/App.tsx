@@ -179,7 +179,17 @@ export default function App() {
       }
     } catch (err: any) {
       console.error(err);
-      setError('حدث خطأ أثناء الفحص. يرجى المحاولة مرة أخرى. ' + (err.message || ''));
+      
+      const errorMessage = err.message || '';
+      if (errorMessage.includes('leaked') || errorMessage.includes('compromised') || errorMessage.includes('403')) {
+        setError('عذراً، يبدو أن مفتاح API الحالي غير صالح أو تم إيقافه. يرجى إنشاء مفتاح جديد من منصة Google AI Studio والمحاولة مرة أخرى.');
+      } else if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+        setError('مفتاح API غير صالح. يرجى التأكد من إدخال المفتاح الصحيح.');
+      } else if (errorMessage.includes('quota') || errorMessage.includes('429')) {
+        setError('لقد تجاوزت الحد المسموح به للاستخدام المجاني (Quota). يرجى المحاولة لاحقاً أو ترقية حسابك.');
+      } else {
+        setError('حدث خطأ أثناء الفحص. يرجى المحاولة مرة أخرى. ' + errorMessage);
+      }
     } finally {
       setIsScanning(false);
     }

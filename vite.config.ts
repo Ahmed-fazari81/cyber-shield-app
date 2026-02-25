@@ -27,6 +27,7 @@ export default defineConfig(({mode}) => {
           share_target: {
             action: '/',
             method: 'GET',
+            enctype: 'application/x-www-form-urlencoded',
             params: {
               title: 'title',
               text: 'text',
