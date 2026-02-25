@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, Info, BookOpen, HelpCircle, Upload, Camera, Link as LinkIcon, FileText, Video, Download, AlertTriangle, CheckCircle, Loader2, Image as ImageIcon, RefreshCw, Key } from 'lucide-react';
+import { Shield, Info, BookOpen, HelpCircle, Upload, Camera, Link as LinkIcon, FileText, Video, Download, AlertTriangle, CheckCircle, Loader2, Image as ImageIcon, RefreshCw, Key, XCircle } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 
 export default function App() {
@@ -14,6 +14,7 @@ export default function App() {
   const [userApiKey, setUserApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const saveApiKey = () => {
     const key = tempApiKey.trim();
@@ -115,6 +116,15 @@ export default function App() {
     }
   };
 
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsScanning(false);
+    setError('تم إيقاف الفحص بناءً على طلبك.');
+  };
+
   const handleScan = async () => {
     if (!userApiKey) {
       setTempApiKey(userApiKey);
@@ -131,17 +141,24 @@ export default function App() {
     setError(null);
     setScanResult(null);
 
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       const ai = new GoogleGenAI({ apiKey: userApiKey });
       const parts: any[] = [];
       
-      let promptText = `أنت خبير في الأمن السيبراني. قم بتحليل المحتوى التالي بدقة لاكتشاف أي تهديدات سيبرانية، مثل التزييف العميق (Deepfake)، الهندسة الاجتماعية، التصيد الاحتيالي (Phishing)، الروابط الخبيثة، البرمجيات الضارة، أو رموز QR المفخخة.
-مهم جداً: قم بتحليل المحتوى الفعلي المرفق فقط. لا تفترض أو تتخيل محتوى غير موجود. إذا كانت الصورة المرفقة عبارة عن صورة عادية (مثل شعار، خنجر، منظر طبيعي، شخص) وليس بها أي تهديد سيبراني أو رمز QR، اذكر بوضوح أن الصورة آمنة وصف محتواها الحقيقي. لا تقم بتأليف روابط أو استنتاجات وهمية.
-إذا كان المحتوى يحتوي على رمز QR حقيقي، قم باستخراج الرابط أو النص الموجود بداخله واذكره في التحليل مع فحص مدى أمانه.
-إذا كان المحتوى صورة أو مقطع فيديو، قم بتحليله بدقة لمعرفة ما إذا كان مولداً بالذكاء الاصطناعي أو يحتوي على تزييف عميق (Deepfake) واذكر الأدلة على ذلك.`;
+      let promptText = `أنت خبير أمني ومحلل محتوى رقمي محترف. مهمتك هي تحليل المحتوى المرفق (نص، رابط، أو صورة) بدقة وموضوعية تامة.
+
+قواعد صارمة جداً (يجب الالتزام بها حرفياً):
+1. صِف ما تراه أو تقرأه بالضبط. لا تتخيل، لا تفترض، ولا تؤلف أي معلومات غير موجودة في المحتوى المرفق.
+2. إذا كانت الصورة عادية (مثل قطة، منظر طبيعي، شعار، أداة)، قل بوضوح "هذه صورة لـ [وصف الصورة] ولا تبدو ضارة".
+3. لا تذكر "رموز QR" أو "روابط خبيثة" أو "تصيد احتيالي" إلا إذا كانت موجودة وواضحة ومرئية في المحتوى.
+4. إذا كانت الصورة تبدو مولدة بالذكاء الاصطناعي (مثل صورة قطة ترتدي ملابس، أو تفاصيل غير واقعية)، اذكر ذلك بوضوح مع ذكر العلامات (مثل: نعومة زائدة، تفاصيل غير منطقية، إضاءة غير طبيعية).
+5. إذا كان المحتوى نصاً أو رابطاً، افحص ما إذا كان يحتوي على أساليب تلاعب نفسي (هندسة اجتماعية) أو وعود وهمية.`;
       
       if (inputText) {
-        promptText += `\n\nالمحتوى النصي أو الرابط: ${inputText}`;
+        promptText += `\n\nالمحتوى النصي أو الرابط المرفق: ${inputText}`;
       }
       
       parts.push({ text: promptText });
@@ -164,13 +181,15 @@ export default function App() {
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              analysis: { type: Type.STRING, description: "التحليل المفصل للمحتوى والمخاطر المحتملة" },
-              recommendations: { type: Type.STRING, description: "التوصيات والإجراءات الوقائية المقترحة" }
+              analysis: { type: Type.STRING, description: "وصف دقيق وواقعي للمحتوى، وهل هو حقيقي أم مولد بالذكاء الاصطناعي، وهل هناك تهديد فعلي." },
+              recommendations: { type: Type.STRING, description: "نصائح عملية ومباشرة للمستخدم بناءً على التحليل." }
             },
             required: ["analysis", "recommendations"]
           }
         }
       });
+
+      if (signal.aborted) return;
 
       if (response.text) {
         const result = JSON.parse(response.text);
@@ -179,6 +198,8 @@ export default function App() {
         throw new Error("لم يتم استلام استجابة صالحة.");
       }
     } catch (err: any) {
+      if (signal.aborted || err.name === 'AbortError') return;
+      
       console.error(err);
       
       const errorMessage = err.message || '';
@@ -194,7 +215,10 @@ export default function App() {
         setError('حدث خطأ أثناء الفحص. يرجى المحاولة مرة أخرى. ' + errorMessage);
       }
     } finally {
-      setIsScanning(false);
+      if (!signal.aborted) {
+        setIsScanning(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -371,23 +395,24 @@ export default function App() {
             )}
 
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <button
-                onClick={handleScan}
-                disabled={isScanning || (!inputText && !selectedFile)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 w-full sm:w-auto min-w-[200px] justify-center"
-              >
-                {isScanning ? (
-                  <>
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    جاري الفحص...
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-6 h-6" />
-                    فحص الآن
-                  </>
-                )}
-              </button>
+              {isScanning ? (
+                <button
+                  onClick={handleCancel}
+                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all flex items-center gap-3 w-full sm:w-auto min-w-[200px] justify-center"
+                >
+                  <XCircle className="w-6 h-6" />
+                  إيقاف الفحص
+                </button>
+              ) : (
+                <button
+                  onClick={handleScan}
+                  disabled={!inputText && !selectedFile}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 w-full sm:w-auto min-w-[200px] justify-center"
+                >
+                  <Shield className="w-6 h-6" />
+                  فحص الآن
+                </button>
+              )}
               <button
                 onClick={() => { setTempApiKey(userApiKey); setShowApiKeyModal(true); }}
                 className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all flex items-center gap-3 w-full sm:w-auto justify-center"
