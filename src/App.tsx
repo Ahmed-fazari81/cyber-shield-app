@@ -187,6 +187,8 @@ export default function App() {
         setError('مفتاح API غير صالح. يرجى التأكد من إدخال المفتاح الصحيح.');
       } else if (errorMessage.includes('quota') || errorMessage.includes('429')) {
         setError('لقد تجاوزت الحد المسموح به للاستخدام المجاني (Quota). يرجى المحاولة لاحقاً أو ترقية حسابك.');
+      } else if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
+        setError('عذراً، خوادم الذكاء الاصطناعي تواجه ضغطاً عالياً حالياً. يرجى المحاولة مرة أخرى بعد قليل.');
       } else {
         setError('حدث خطأ أثناء الفحص. يرجى المحاولة مرة أخرى. ' + errorMessage);
       }
