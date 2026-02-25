@@ -3,7 +3,7 @@ import { Shield, Info, BookOpen, HelpCircle, Upload, Camera, Link as LinkIcon, F
 import { GoogleGenAI, Type } from '@google/genai';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('text');
+  const [activeTab, setActiveTab] = useState('image');
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -81,7 +81,6 @@ export default function App() {
         if (item.kind === 'string' && item.type === 'text/plain') {
           item.getAsString((text) => {
             setInputText(text);
-            setActiveTab('text');
           });
           return;
         }
@@ -285,27 +284,15 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           {/* Tabs */}
-          <div className="flex overflow-x-auto border-b border-slate-100 bg-slate-50/50">
-            <TabButton active={activeTab === 'text'} onClick={() => { setActiveTab('text'); clearInput(); }} icon={<LinkIcon className="w-4 h-4" />} label="رابط / نص" />
-            <TabButton active={activeTab === 'file'} onClick={() => { setActiveTab('file'); clearInput(); }} icon={<FileText className="w-4 h-4" />} label="ملف / إيميل" />
+          <div className="flex w-full border-b border-slate-100 bg-slate-50/50">
             <TabButton active={activeTab === 'image'} onClick={() => { setActiveTab('image'); clearInput(); }} icon={<ImageIcon className="w-4 h-4" />} label="صورة" />
             <TabButton active={activeTab === 'video'} onClick={() => { setActiveTab('video'); clearInput(); }} icon={<Video className="w-4 h-4" />} label="فيديو / صوت" />
+            <TabButton active={activeTab === 'file'} onClick={() => { setActiveTab('file'); clearInput(); }} icon={<FileText className="w-4 h-4" />} label="ملف / مستند" />
           </div>
 
           {/* Input Area */}
           <div className="p-6">
-            {activeTab === 'text' && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">أدخل الرابط أو النص المشبوه:</label>
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="https://example.com أو الصق رسالة البريد الإلكتروني هنا..."
-                  className="w-full h-32 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none transition-all"
-                  dir="auto"
-                />
-              </div>
-            )}
+            <TabInstructions tab={activeTab} />
 
             {activeTab === 'file' && (
               <FileUploadArea 
@@ -373,19 +360,17 @@ export default function App() {
             )}
 
             {/* Common Paste Field */}
-            {activeTab !== 'text' && (
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">أو قم بلصق الرابط / النص هنا:</label>
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="لصق الرابط..."
-                  className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                  dir="auto"
-                />
-              </div>
-            )}
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">أو قم بلصق الرابط / النص هنا (Ctrl+V):</label>
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="يمكنك لصق رابط الصورة، الفيديو، أو أي نص هنا..."
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                dir="auto"
+              />
+            </div>
 
             {error && (
               <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl flex items-start gap-3">
@@ -398,10 +383,12 @@ export default function App() {
               {isScanning ? (
                 <button
                   onClick={handleCancel}
-                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all flex items-center gap-3 w-full sm:w-auto min-w-[200px] justify-center"
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all flex items-center gap-3 w-full sm:w-auto min-w-[200px] justify-center"
                 >
-                  <XCircle className="w-6 h-6" />
-                  إيقاف الفحص
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>جاري الفحص...</span>
+                  <div className="h-6 w-px bg-white/30 mx-1"></div>
+                  <XCircle className="w-6 h-6" title="إيقاف الفحص" />
                 </button>
               ) : (
                 <button
@@ -579,14 +566,14 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-6 py-4 font-medium text-sm whitespace-nowrap transition-all border-b-2 ${
+      className={`flex-1 flex items-center justify-center gap-2 px-2 sm:px-6 py-4 font-medium text-xs sm:text-sm transition-all border-b-2 ${
         active 
           ? 'border-emerald-500 text-emerald-600 bg-white' 
           : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
       }`}
     >
       {icon}
-      {label}
+      <span className="whitespace-nowrap">{label}</span>
     </button>
   );
 }
@@ -622,4 +609,53 @@ function FileUploadArea({ onFileSelect, selectedFile, accept, label }: { onFileS
       )}
     </div>
   );
+}
+
+function TabInstructions({ tab }: { tab: string }) {
+  if (tab === 'image') {
+    return (
+      <div className="mb-6 bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
+          <div>
+            <p className="font-bold mb-1 text-blue-900">💡 طريقة الاستخدام:</p>
+            <p className="mb-3">قم برفع صورة، التقاطها بالكاميرا، أو ببساطة <strong>انسخ أي صورة</strong> من (واتساب، تويتر، جوجل) والصقها مباشرة هنا (Ctrl+V).</p>
+            <p className="font-bold mb-1 text-blue-900">🎯 النتائج المتوقعة:</p>
+            <p>اكتشاف الصور المولدة بالذكاء الاصطناعي (Deepfake)، التلاعب البصري، أو رموز QR الخبيثة.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (tab === 'video') {
+    return (
+      <div className="mb-6 bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
+          <div>
+            <p className="font-bold mb-1 text-blue-900">💡 طريقة الاستخدام:</p>
+            <p className="mb-3">قم برفع مقطع فيديو أو صوت، أو <strong>انسخ رابط المقطع</strong> من أي منصة والصقه في الخانة بالأسفل.</p>
+            <p className="font-bold mb-1 text-blue-900">🎯 النتائج المتوقعة:</p>
+            <p>تحليل دقيق لاكتشاف التزييف العميق في الفيديو (Deepfake) أو استنساخ الصوت بالذكاء الاصطناعي (Audio Spoofing).</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (tab === 'file') {
+    return (
+      <div className="mb-6 bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
+          <div>
+            <p className="font-bold mb-1 text-blue-900">💡 طريقة الاستخدام:</p>
+            <p className="mb-3">قم برفع ملف (PDF, Word, رسالة إيميل)، أو <strong>انسخ محتوى الرسالة/الرابط</strong> والصقه في الخانة بالأسفل.</p>
+            <p className="font-bold mb-1 text-blue-900">🎯 النتائج المتوقعة:</p>
+            <p>اكتشاف محاولات التصيد الاحتيالي (Phishing)، أساليب الهندسة الاجتماعية، والروابط أو المرفقات الخبيثة.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
